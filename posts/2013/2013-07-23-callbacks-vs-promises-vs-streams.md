@@ -35,31 +35,47 @@ function findSamples(targetPath, callback) {
 }
 ```
 
-Now, ideally I'd like to go quiet here while someone illustrates how a solid promise based implementation might look.  That I suspect may not happen.  So I've done my best to show what an implementation might look given the assumption that `fs.readdir` and `fs.stat` returned promise objects:
+[@ForbesLindesay](http://www.forbeslindesay.co.uk/) submitted the following promise implementation using his [promise](https://github.com/then/promise) library:
 
 ```js
-var fs = require('fs');
 var path = require('path');
-var promiselib = require('some-promise-lib');
+var Promise = require('promise');
+var fs = {
+  readdir: Promise.denodeify(require('fs').readdir),
+  stat: Promise.denodeify(require('fs').stat)
+};
 
 function findSamples(targetPath, callback) {
-  fs.readdir(targetPath).then(function(files) {
+  return fs.readdir(targetPath).then(function(files) {
     // get the full path names of the files
-    files = files.map(path.join.bind(null, targetPath), callback);
+    files = files.map(path.join.bind(null, targetPath));
 
-    promiselib.every(files.map(fs.stat), function(results) {
-      // remove files that aren't a directory
-      var matchingFiles = files.filter(function(filename, index) {
+    //get a promise for all the `Stat` objects of each file
+    var stats = Promise.all(files.map(fs.stat));
+    
+    //get the result of that promise
+    return stats.then(function (stats) {
+      //remove files that aren't a directory
+      var matchingFiles = files.filter(function (filename, index) {
         return results[index].isDirectory();
-      });
+      })
 
-      callback(null, matchingFiles.map(path.basename));      
-    }, callback);
-  });
+      return matchingFiles.map(path.basename);
+    });
+  }).nodeify(callback);
 }
-```
 
-The reality I think is that it looks pretty similar.  Feel free to provide a more "correct" implementation in the comments - I'm all ears.
+//usage
+findSamples(__dirname, function (err, res) {
+  if (err) throw err;
+  ...
+})
+//alternative usage
+findSamples(__dirname).then(function (res) {
+  ...
+})
+.done();//throws any unhandled errors
+```
 
 Finally, let me show you what the implementation looks like using [pull-streams](https://github.com/dominictarr/pull-streams):
 
@@ -122,5 +138,3 @@ function findSamples(targetPath, callback) {
 I don't know about you, but for me I'm sold on [pull-streams](https://github.com/dominictarr/pull-stream).
 
 Feel free to [discuss](https://github.com/DamonOehlman/damonoehlman.github.io/issues/18).
-
-Thanks go to people who have already contributed alternative examples in the issue comments already.  As a result I've started collecting some examples together in a separate [async-comparison](https://github.com/DamonOehlman/async-comparison) repo which will give you the opportunity to play around with some of the approaches outlined.
