@@ -138,3 +138,5 @@ function findSamples(targetPath, callback) {
 I don't know about you, but for me I'm sold on [pull-streams](https://github.com/dominictarr/pull-stream).
 
 Feel free to [discuss](https://github.com/DamonOehlman/damonoehlman.github.io/issues/18).
+
+Thanks go to people who have already contributed alternative examples in the issue comments already.  As a result I've started collecting some examples together in a separate [async-comparison](https://github.com/DamonOehlman/async-comparison) repo which will give you the opportunity to play around with some of the approaches outlined.
