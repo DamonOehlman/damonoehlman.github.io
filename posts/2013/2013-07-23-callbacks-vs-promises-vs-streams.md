@@ -121,4 +121,4 @@ function findSamples(targetPath, callback) {
 
 I don't know about you, but for me I'm sold on [pull-streams](https://github.com/dominictarr/pull-streams).
 
-Feel free to [discuss](#18).
+Feel free to [discuss](https://github.com/DamonOehlman/damonoehlman.github.io/issues/18).
