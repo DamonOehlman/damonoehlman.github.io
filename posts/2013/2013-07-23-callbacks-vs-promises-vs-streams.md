@@ -119,6 +119,6 @@ function findSamples(targetPath, callback) {
 }
 ```
 
-I don't know about you, but for me I'm sold on [pull-streams](https://github.com/dominictarr/pull-streams).
+I don't know about you, but for me I'm sold on [pull-streams](https://github.com/dominictarr/pull-stream).
 
 Feel free to [discuss](https://github.com/DamonOehlman/damonoehlman.github.io/issues/18).
