@@ -51,13 +51,15 @@ function findSamples(targetPath, callback) {
     files = files.map(path.join.bind(null, targetPath));
 
     //get a promise for all the `Stat` objects of each file
-    var stats = Promise.all(files.map(fs.stat));
+    var stats = Promise.all(files.map(function (path) {
+      return fs.stat(path)
+    }));
     
     //get the result of that promise
     return stats.then(function (stats) {
       //remove files that aren't a directory
       var matchingFiles = files.filter(function (filename, index) {
-        return results[index].isDirectory();
+        return stats[index].isDirectory();
       })
 
       return matchingFiles.map(path.basename);
