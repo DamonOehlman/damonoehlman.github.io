@@ -95,7 +95,7 @@ function findSamples(targetPath, callback) {
 
       // join the path names and stat the files        
       pull.map(path.join.bind(null, targetPath)),
-      pull.asyncMap(function(filename, callback) {
+      pull.paraMap(function(filename, callback) {
         fs.stat(filename, function(err, stats) {
           // create a compound object so we don't lose the filename
           // in the map transformation
