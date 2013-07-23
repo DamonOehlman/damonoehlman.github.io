@@ -101,4 +101,22 @@ function findSamples(targetPath, callback) {
 }
 ```
 
-While the implementation for the pull-stream is a little longer, IMO the control flow feels more linear and thus I think easier to comprehend.  Also, while I haven't investigated it fully yet I believe quite a few of the intermediate steps (classed as through streams) could be combined into a single reusable through stream called perhaps `acceptDirectories()` which would result simpler to comprehend code.
+While the implementation for the pull-stream is a little longer, IMO the control flow feels more linear and thus I think easier to comprehend.  Additionally, I went one step further and started creating some pull-stream filesystem helpers in the way of [fpath](https://github.com/DamonOehlman/fpath) which futher simplifies the code to:
+
+```js
+var fpath = require('fpath');
+var pull = require('pull-stream');
+
+function findSamples(targetPath, callback) {
+  pull(
+    fpath.entries(targetPath),
+    fpath.filter(function(filename, stats) {
+      return stats.isDirectory()
+    }),
+    pull.map(path.basename),
+    pull.collect(callback)
+  );
+}
+```
+
+I don't know about you, but for me I'm sold on [pull-streams](https://github.com/dominictarr/pull-streams).
