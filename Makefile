@@ -1,19 +1,17 @@
+# tools
 blockdown = `npm bin`/blockdown
 injectcode = `npm bin`/injectcode
-outputfiles = $(filter-out template.html,$(wildcard *.html))
+
+# gather the posts that we are going to build
 posts = $(patsubst %.md,%.html,$(subst src/,,$(wildcard src/posts/*.md)))
-tutorials = $(patsubst %.md,tutorial-%.html,$(subst src/tutorials/,,$(wildcard src/tutorials/*.md)))
-samples = $(subst code/,js/samples/,$(wildcard code/*.js))
-githubcontent = https://raw.githubusercontent.com
-baseurl_remote ?= ${githubcontent}/rtc-io
 
 all: clean $(posts)
 
 $(posts):
 	@mkdir -p posts
+	@echo "generating $@"
 	@$(blockdown) template.html < src/$(patsubst %.html,%.md,$@) > $@
 
 clean:
 	@rm -rf index.html
 	@rm -rf posts/
-	@echo $(posts)
