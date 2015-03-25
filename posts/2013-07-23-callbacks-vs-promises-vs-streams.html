@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta http-equiv="X-UA-Compatible" content="chrome=1">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="format-detection" content="telephone=no">
+<meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
+<title>damonoehlman.github.io</title>
+<!-- responsive -->
+<link rel="stylesheet" media="screen and (max-width: 960px)" href="css/tablet.css">
+<link rel="stylesheet" media="screen and (max-width: 710px)" href="css/phone.css">
+<link rel="stylesheet" type="text/css" href="fonts/source-sans/stylesheet.css">
+<link rel="stylesheet" type="text/css" href="css/code.css">
+</head>
+<body>
+<div class="main" role="content"><h1 id="callbacks-vs-promises-vs-streams">Callbacks vs Promises vs Streams</h1>
+<p>Right, here&#39;s a really simple task for you to complete in node using non-blocking implementations only (no sync functions allowed):</p>
+<p>For a single source directory, return the list of directory names in that directory.  Essentially, I&#39;m after the equivalent of running <code>ls -d */</code> in a directory on a *nix based system.  And yes, if you&#39;re trying to be clever then you could just spawn that and parse the output as one solution.</p>
+<p>Basically, here is the implementation using pure callbacks using the <a href="https://github.com/caolan/async">async</a> library to help ease some of the pain:</p>
+<div class="highlight"><pre><span class="kd">var</span> <span class="nx">fs</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;fs&#39;</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">path</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;path&#39;</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">async</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;async&#39;</span><span class="p">);</span>
+
+<span class="kd">function</span> <span class="nx">findSamples</span><span class="p">(</span><span class="nx">targetPath</span><span class="p">,</span> <span class="nx">callback</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">fs</span><span class="p">.</span><span class="nx">readdir</span><span class="p">(</span><span class="nx">targetPath</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">files</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">err</span><span class="p">)</span> <span class="k">return</span> <span class="nx">callback</span><span class="p">(</span><span class="nx">err</span><span class="p">);</span>
+
+    <span class="c1">// get the full path names of the files</span>
+    <span class="nx">files</span> <span class="o">=</span> <span class="nx">files</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">path</span><span class="p">.</span><span class="nx">join</span><span class="p">.</span><span class="nx">bind</span><span class="p">(</span><span class="kc">null</span><span class="p">,</span> <span class="nx">targetPath</span><span class="p">));</span>
+
+    <span class="c1">// stat each of the files</span>
+    <span class="nx">async</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">files</span><span class="p">,</span> <span class="nx">fs</span><span class="p">.</span><span class="nx">stat</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">results</span><span class="p">)</span> <span class="p">{</span>
+      <span class="kd">var</span> <span class="nx">matchingFiles</span><span class="p">;</span>
+
+      <span class="k">if</span> <span class="p">(</span><span class="nx">err</span><span class="p">)</span> <span class="k">return</span> <span class="nx">callback</span><span class="p">(</span><span class="nx">err</span><span class="p">);</span>
+
+      <span class="c1">// remove files that aren&#39;t a directory</span>
+      <span class="nx">matchingFiles</span> <span class="o">=</span> <span class="nx">files</span><span class="p">.</span><span class="nx">filter</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span> <span class="nx">index</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="nx">results</span><span class="p">[</span><span class="nx">index</span><span class="p">].</span><span class="nx">isDirectory</span><span class="p">();</span>
+      <span class="p">});</span>
+
+      <span class="nx">callback</span><span class="p">(</span><span class="kc">null</span><span class="p">,</span> <span class="nx">matchingFiles</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">path</span><span class="p">.</span><span class="nx">basename</span><span class="p">));</span>
+    <span class="p">});</span>
+  <span class="p">});</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><a href="http://www.forbeslindesay.co.uk/">@ForbesLindesay</a> submitted the following promise implementation using his <a href="https://github.com/then/promise">promise</a> library:</p>
+<div class="highlight"><pre><span class="kd">var</span> <span class="nx">path</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;path&#39;</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">Promise</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;promise&#39;</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">fs</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="nx">readdir</span><span class="o">:</span> <span class="nx">Promise</span><span class="p">.</span><span class="nx">denodeify</span><span class="p">(</span><span class="nx">require</span><span class="p">(</span><span class="s1">&#39;fs&#39;</span><span class="p">).</span><span class="nx">readdir</span><span class="p">),</span>
+  <span class="nx">stat</span><span class="o">:</span> <span class="nx">Promise</span><span class="p">.</span><span class="nx">denodeify</span><span class="p">(</span><span class="nx">require</span><span class="p">(</span><span class="s1">&#39;fs&#39;</span><span class="p">).</span><span class="nx">stat</span><span class="p">)</span>
+<span class="p">};</span>
+
+<span class="kd">function</span> <span class="nx">findSamples</span><span class="p">(</span><span class="nx">targetPath</span><span class="p">,</span> <span class="nx">callback</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="nx">fs</span><span class="p">.</span><span class="nx">readdir</span><span class="p">(</span><span class="nx">targetPath</span><span class="p">).</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">files</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// get the full path names of the files</span>
+    <span class="nx">files</span> <span class="o">=</span> <span class="nx">files</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">path</span><span class="p">.</span><span class="nx">join</span><span class="p">.</span><span class="nx">bind</span><span class="p">(</span><span class="kc">null</span><span class="p">,</span> <span class="nx">targetPath</span><span class="p">));</span>
+
+    <span class="c1">//get a promise for all the `Stat` objects of each file</span>
+    <span class="kd">var</span> <span class="nx">stats</span> <span class="o">=</span> <span class="nx">Promise</span><span class="p">.</span><span class="nx">all</span><span class="p">(</span><span class="nx">files</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">path</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">fs</span><span class="p">.</span><span class="nx">stat</span><span class="p">(</span><span class="nx">path</span><span class="p">)</span>
+    <span class="p">}));</span>
+
+    <span class="c1">//get the result of that promise</span>
+    <span class="k">return</span> <span class="nx">stats</span><span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">stats</span><span class="p">)</span> <span class="p">{</span>
+      <span class="c1">//remove files that aren&#39;t a directory</span>
+      <span class="kd">var</span> <span class="nx">matchingFiles</span> <span class="o">=</span> <span class="nx">files</span><span class="p">.</span><span class="nx">filter</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">filename</span><span class="p">,</span> <span class="nx">index</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="nx">stats</span><span class="p">[</span><span class="nx">index</span><span class="p">].</span><span class="nx">isDirectory</span><span class="p">();</span>
+      <span class="p">})</span>
+
+      <span class="k">return</span> <span class="nx">matchingFiles</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">path</span><span class="p">.</span><span class="nx">basename</span><span class="p">);</span>
+    <span class="p">});</span>
+  <span class="p">}).</span><span class="nx">nodeify</span><span class="p">(</span><span class="nx">callback</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">//usage</span>
+<span class="nx">findSamples</span><span class="p">(</span><span class="nx">__dirname</span><span class="p">,</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">res</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">err</span><span class="p">)</span> <span class="k">throw</span> <span class="nx">err</span><span class="p">;</span>
+  <span class="p">...</span>
+<span class="p">})</span>
+<span class="c1">//alternative usage</span>
+<span class="nx">findSamples</span><span class="p">(</span><span class="nx">__dirname</span><span class="p">).</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">res</span><span class="p">)</span> <span class="p">{</span>
+  <span class="p">...</span>
+<span class="p">})</span>
+<span class="p">.</span><span class="nx">done</span><span class="p">();</span><span class="c1">//throws any unhandled errors</span>
+</pre></div>
+
+<p>Finally, let me show you what the implementation looks like using <a href="https://github.com/dominictarr/pull-streams">pull-streams</a>:</p>
+<div class="highlight"><pre><span class="kd">var</span> <span class="nx">fs</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;fs&#39;</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">path</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;path&#39;</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">pull</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;pull-stream&#39;</span><span class="p">);</span>
+
+<span class="kd">function</span> <span class="nx">findSamples</span><span class="p">(</span><span class="nx">targetPath</span><span class="p">,</span> <span class="nx">callback</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">fs</span><span class="p">.</span><span class="nx">readdir</span><span class="p">(</span><span class="nx">targetPath</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">files</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">err</span><span class="p">)</span> <span class="k">return</span> <span class="nx">callback</span><span class="p">(</span><span class="nx">err</span><span class="p">);</span>
+
+    <span class="nx">pull</span><span class="p">(</span>
+      <span class="nx">pull</span><span class="p">.</span><span class="nx">values</span><span class="p">(</span><span class="nx">files</span><span class="p">),</span>
+
+      <span class="c1">// join the path names and stat the files        </span>
+      <span class="nx">pull</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">path</span><span class="p">.</span><span class="nx">join</span><span class="p">.</span><span class="nx">bind</span><span class="p">(</span><span class="kc">null</span><span class="p">,</span> <span class="nx">targetPath</span><span class="p">)),</span>
+      <span class="nx">pull</span><span class="p">.</span><span class="nx">paraMap</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span> <span class="nx">callback</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nx">fs</span><span class="p">.</span><span class="nx">stat</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">stats</span><span class="p">)</span> <span class="p">{</span>
+          <span class="c1">// create a compound object so we don&#39;t lose the filename</span>
+          <span class="c1">// in the map transformation</span>
+          <span class="nx">callback</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="p">{</span> <span class="nx">stats</span><span class="o">:</span> <span class="nx">stats</span><span class="p">,</span> <span class="nx">filename</span> <span class="o">:</span> <span class="nx">filename</span> <span class="p">});</span>
+        <span class="p">});</span>
+      <span class="p">}),</span>
+
+      <span class="c1">// only keep directories</span>
+      <span class="nx">pull</span><span class="p">.</span><span class="nx">filter</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">data</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="nx">data</span><span class="p">.</span><span class="nx">stats</span><span class="p">.</span><span class="nx">isDirectory</span><span class="p">();</span>
+      <span class="p">}),</span>
+
+      <span class="c1">// transform back to a simple list of filenames</span>
+      <span class="nx">pull</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">data</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="nx">path</span><span class="p">.</span><span class="nx">basename</span><span class="p">(</span><span class="nx">data</span><span class="p">.</span><span class="nx">filename</span><span class="p">);</span>
+      <span class="p">}),</span>
+
+      <span class="nx">pull</span><span class="p">.</span><span class="nx">collect</span><span class="p">(</span><span class="nx">callback</span><span class="p">)</span>
+    <span class="p">);</span>
+  <span class="p">});</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>While the implementation for the pull-stream is a little longer, IMO the control flow feels more linear and thus I think easier to comprehend.  Additionally, I went one step further and started creating some pull-stream filesystem helpers in the way of <a href="https://github.com/DamonOehlman/fpath">fpath</a> which futher simplifies the code to:</p>
+<div class="highlight"><pre><span class="kd">var</span> <span class="nx">fpath</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;fpath&#39;</span><span class="p">);</span>
+<span class="kd">var</span> <span class="nx">pull</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;pull-stream&#39;</span><span class="p">);</span>
+
+<span class="kd">function</span> <span class="nx">findSamples</span><span class="p">(</span><span class="nx">targetPath</span><span class="p">,</span> <span class="nx">callback</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">pull</span><span class="p">(</span>
+    <span class="nx">fpath</span><span class="p">.</span><span class="nx">entries</span><span class="p">(</span><span class="nx">targetPath</span><span class="p">),</span>
+    <span class="nx">fpath</span><span class="p">.</span><span class="nx">filter</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">filename</span><span class="p">,</span> <span class="nx">stats</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">stats</span><span class="p">.</span><span class="nx">isDirectory</span><span class="p">()</span>
+    <span class="p">}),</span>
+    <span class="nx">pull</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">path</span><span class="p">.</span><span class="nx">basename</span><span class="p">),</span>
+    <span class="nx">pull</span><span class="p">.</span><span class="nx">collect</span><span class="p">(</span><span class="nx">callback</span><span class="p">)</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>I don&#39;t know about you, but for me I&#39;m sold on <a href="https://github.com/dominictarr/pull-stream">pull-streams</a>.</p>
+<p>Feel free to <a href="https://github.com/DamonOehlman/damonoehlman.github.io/issues/18">discuss</a>.</p>
+<p>Thanks go to people who have already contributed alternative examples in the issue comments already.  As a result I&#39;ve started collecting some examples together in a separate <a href="https://github.com/DamonOehlman/async-comparison">async-comparison</a> repo which will give you the opportunity to play around with some of the approaches outlined.</p>
+</div>
+</body>
+</html>
+
