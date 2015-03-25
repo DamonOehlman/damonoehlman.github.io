@@ -5,7 +5,11 @@ injectcode = `npm bin`/injectcode
 # gather the posts that we are going to build
 posts = $(patsubst %.md,%.html,$(subst src/,,$(wildcard src/posts/*.md)))
 
-all: clean $(posts)
+all: clean index.html $(posts)
+
+index.html:
+	@echo "generating index"
+	@$(blockdown) template.html < src/index.md > index.html
 
 $(posts):
 	@mkdir -p posts
